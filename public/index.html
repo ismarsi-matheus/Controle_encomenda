@@ -84,6 +84,8 @@ header.top p { margin: 4px 0 0; color: var(--muted); }
 .sum span { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .sum.late b { color: var(--late); } .sum.today b { color: var(--warn); }
 .sum.money b { color: var(--accent); font-size: clamp(18px, 4.6vw, 28px); }
+button.sum { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.sum:hover { border-color: var(--late); }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -140,7 +142,7 @@ header.top p { margin: 4px 0 0; color: var(--muted); }
 /* Histórico */
 .month { display: grid; gap: 8px; }
 .month-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; border-bottom: 2px dashed var(--line); padding-bottom: 6px; }
-.month-head h2 { font-size: 18px; text-transform: capitalize; }
+.month-head h2 { font-size: 18px; }
 .month-head span { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .hrow { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; }
 .hrow:hover { border-color: var(--tone); }
@@ -400,7 +402,7 @@ html.checando body { visibility: hidden; }
   const FILTROS = ["abertos","a_fazer","bordando","pronto"];
 
   let sessao = null, pedidos = null, ultima = null;
-  let vista = "pedidos", filtro = "abertos", lojaFiltro = "todas", busca = "";
+  let vista = "pedidos", filtro = "abertos", filtroHist = "todos", lojaFiltro = "todas", busca = "";
   let editando = null, apagando = null, podeEscrever = true;
   const expandido = new Set();
   const $ = id => document.getElementById(id);
@@ -454,6 +456,7 @@ html.checando body { visibility: hidden; }
   function pillPagamento(p) {
     if (!(Number(p.valor) > 0)) return '<span class="pill calm">Sem valor</span>';
     if (falta(p) === 0) return '<span class="pill done">Pago</span>';
+    if (p.status === "entregue") return `<span class="pill late">Aguardando ${reais(falta(p))}</span>`;
     if (Number(p.pago) > 0) return `<span class="pill today">Falta ${reais(falta(p))}</span>`;
     return '<span class="pill late">Não pago</span>';
   }
@@ -516,7 +519,6 @@ html.checando body { visibility: hidden; }
   function renderLojas() {
     const todos = pedidos || [];
     const n = l => todos.filter(p => (l === "todas" || lojaDe(p) === l) && (vista === "historico" ? p.status === "entregue" : p.status !== "entregue")).length;
-    const rot = vista === "historico" ? "entregues" : "em aberto";
     const opcoes = [
       { id: "todas", nome: "Todas", sub: "As duas lojas" },
       { id: "bordados", nome: LOJAS.bordados.curto, sub: "Bordados e Aviamentos" },
@@ -524,7 +526,7 @@ html.checando body { visibility: hidden; }
     ];
     $("lojas").innerHTML = opcoes.map(o =>
       `<button type="button" class="store${o.id !== "todas" ? " t-" + o.id : ""}" data-loja="${o.id}" aria-pressed="${lojaFiltro === o.id}">
-        <b>${o.nome}</b><small><span class="sub">${o.sub} · </span>${n(o.id)} ${rot}</small></button>`).join("");
+        <b>${o.nome}</b><small><span class="sub">${o.sub} · </span>${n(o.id)} ${vista === "historico" ? (n(o.id) === 1 ? "entregue" : "entregues") : "em aberto"}</small></button>`).join("");
   }
 
   function renderVistas() {
@@ -532,7 +534,6 @@ html.checando body { visibility: hidden; }
     const todos = pedidos || [];
     $("nav-abertos").textContent = todos.filter(p => p.status !== "entregue").length;
     $("nav-hist").textContent = todos.filter(p => p.status === "entregue").length;
-    $("tabs").hidden = vista !== "pedidos";
   }
 
   function renderResumo() {
@@ -552,11 +553,21 @@ html.checando body { visibility: hidden; }
         <div class="sum"><b>${doMes.length}</b><span>Entregues no mês</span></div>
         <div class="sum"><b>${ent.length}</b><span>Total entregues</span></div>
         <div class="sum money wide"><b>${reais(doMes.reduce((t, p) => t + (Number(p.valor) || 0), 0))}</b><span>Vendido no mês</span></div>
-        <div class="sum late wide"><b>${reais(ent.reduce((t, p) => t + falta(p), 0))}</b><span>Entregue sem pagar</span></div>`;
+        <button type="button" class="sum late wide" data-hist="pagar" title="Ver quem está devendo"><b>${reais(ent.reduce((t, p) => t + falta(p), 0))}</b><span>Aguardando pagamento ›</span></button>`;
     }
   }
 
   function renderTabs() {
+    if (vista === "historico") {
+      const ent = entregues();
+      const abas = [
+        { id: "todos", nome: "Todos entregues", n: ent.length },
+        { id: "pagar", nome: "Aguardando pagamento", n: ent.filter(p => falta(p) > 0).length },
+      ];
+      $("tabs").innerHTML = abas.map(t =>
+        `<button type="button" class="tab" data-hist="${t.id}" aria-pressed="${filtroHist === t.id}">${t.nome}<small>${t.n}</small></button>`).join("");
+      return;
+    }
     const ab = abertos();
     const cont = id => id === "abertos" ? ab.length : ab.filter(p => p.status === id).length;
     const tabs = [{ id: "abertos", nome: "Todos em aberto" }, ...ETAPAS.filter(e => e.id !== "entregue").map(e => ({ id: e.id, nome: lojaFiltro !== "todas" ? nomeEtapa(e.id, lojaFiltro) : e.nome }))];
@@ -629,14 +640,17 @@ html.checando body { visibility: hidden; }
   }
 
   function renderHistorico() {
-    const lista = entregues().filter(bate).sort((a, b) => dataEntrega(b) - dataEntrega(a));
+    const devendo = filtroHist === "pagar";
+    const lista = entregues().filter(p => !devendo || falta(p) > 0).filter(bate).sort((a, b) => dataEntrega(b) - dataEntrega(a));
+    if (devendo && !entregues().some(p => falta(p) > 0)) return vazio("Ninguém devendo", "Todos os pedidos entregues já estão pagos. Quando alguém levar a encomenda sem quitar, ela aparece aqui até ser marcada como paga.");
     if (!entregues().length) return vazio("O histórico está vazio", "Quando um pedido for marcado como Entregue, ele sai da lista de abertos e fica guardado aqui, separado por mês.");
     if (!lista.length) return vazio("Nada encontrado", "Nenhum pedido entregue bate com essa busca.");
     const grupos = new Map();
     lista.forEach(p => { const d = dataEntrega(p); const k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(p); });
     return [...grupos.entries()].map(([k, ps]) => {
       const [y, m] = k.split("-").map(Number);
-      const mes = new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mesTxt = new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const mes = mesTxt.charAt(0).toUpperCase() + mesTxt.slice(1);
       const total = ps.reduce((t, p) => t + (Number(p.valor) || 0), 0);
       return `<section class="month"><div class="month-head"><h2>${mes}</h2><span>${ps.length} pedido${ps.length > 1 ? "s" : ""} · ${reais(total)}</span></div>
         ${ps.map(p => expandido.has(p.id) ? cardHTML(p) : `
@@ -764,7 +778,15 @@ html.checando body { visibility: hidden; }
     lojaFiltro = b.dataset.loja; try { localStorage.setItem("bastidor-loja", lojaFiltro); } catch (er) {}
     render();
   });
+  // Histórico: abas "Todos entregues" / "Aguardando pagamento" (também pelo quadro do resumo)
+  function filtrarHist(e) {
+    const b = e.target.closest("[data-hist]"); if (!b) return false;
+    filtroHist = b.dataset.hist === filtroHist && b.classList.contains("sum") ? "todos" : b.dataset.hist;
+    render(); return true;
+  }
+  $("resumo").addEventListener("click", filtrarHist);
   $("tabs").addEventListener("click", e => {
+    if (filtrarHist(e)) return;
     const b = e.target.closest("[data-tab]"); if (!b) return;
     filtro = b.dataset.tab; try { localStorage.setItem("bastidor-filtro", filtro); } catch (er) {}
     render();
