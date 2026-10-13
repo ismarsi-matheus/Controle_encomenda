@@ -1,0 +1,13 @@
+{
+  "name": "Bastidor de Pedidos",
+  "short_name": "Pedidos",
+  "description": "Encomendas personalizadas: Bordados e Aviamentos e Papelaria Criativa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffafc",
+  "theme_color": "#d63384",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

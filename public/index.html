@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="pt-BR" class="checando">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#d63384">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pedidos">
+<title>Bastidor de Pedidos</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: seletor de loja; duas vistas (Pedidos em aberto / Histórico de entregues); fichas compactas que abrem em detalhes; no celular, barra de navegação fixa embaixo */
+/* Visual fixo branco e rosa (pedido da loja), sem tema escuro */
+:root {
+  color-scheme: light;
+  --bg: #fffafc;
+  --surface: #ffffff;
+  --fg: #3b1f2c;
+  --muted: #8a6575;
+  --line: #f3d3e0;
+  --accent: #d63384;          /* bordados: rosa */
+  --accent-soft: #fde8f1;
+  --pap: #a3245e;             /* papelaria criativa: rosa framboesa */
+  --pap-soft: #f9e1ec;
+  --ok: #1f7a4d;   --ok-soft: #dcf1e5;
+  --warn: #9a5b00; --warn-soft: #fbeccf;
+  --late: #b42318; --late-soft: #fbe1de;
+  --info: #2f4fb0; --info-soft: #e1e8fb;
+  --shadow: 0 1px 2px rgba(214,51,132,.06), 0 6px 18px rgba(214,51,132,.08);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+html { padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Cada loja tem seu tom de rosa; o resto herda via --tone */
+.t-bordados { --tone: var(--accent); --tone-soft: var(--accent-soft); }
+.t-papelaria { --tone: var(--pap); --tone-soft: var(--pap-soft); }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+header.top h1 { font-size: clamp(24px, 5vw, 36px); font-weight: 700; letter-spacing: -.01em; }
+header.top p { margin: 4px 0 0; color: var(--muted); }
+.stitch { height: 0; border-top: 2px dashed var(--accent); opacity: .55; }
+
+.stores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.store { border: 0; background: transparent; padding: 10px 12px; font-weight: 600; color: var(--muted); display: grid; gap: 1px; text-align: left; border-right: 1px solid var(--line); min-width: 0; }
+.store:last-child { border-right: 0; }
+.store small { font-weight: 500; font-size: 12px; }
+.store b { font-family: var(--f-display); font-size: 16px; color: var(--fg); }
+.store[aria-pressed="true"] { background: var(--tone-soft, var(--accent-soft)); box-shadow: inset 0 -3px 0 var(--tone, var(--accent)); }
+.store[aria-pressed="true"] b { color: var(--tone, var(--accent)); }
+
+.views { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); justify-self: start; }
+.views button { border: 0; background: transparent; border-radius: 999px; padding: 6px 16px; font-weight: 600; color: var(--muted); }
+.views button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 14px; font-weight: 600; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--late); border-color: var(--late); background: transparent; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn.link { border: 0; background: transparent; color: var(--tone, var(--accent)); padding: 4px 0; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.sum { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.sum b { font-family: var(--f-display); font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum span { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.sum.late b { color: var(--late); } .sum.today b { color: var(--warn); }
+.sum.money b { color: var(--accent); font-size: clamp(18px, 4.6vw, 28px); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 14px; color: var(--muted); }
+.tab[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tab small { font-family: var(--f-mono); margin-left: 4px; opacity: .8; }
+#busca { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; min-width: 0; width: 260px; max-width: 100%; }
+
+.list { display: grid; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; }
+.card.is-late { border-color: var(--late); }
+.card-head { display: grid; gap: 4px; min-width: 0; justify-items: start; }
+.card-head h2 { font-size: 18px; font-weight: 700; }
+.card-head .who { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.tag { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--tone); background: var(--tone-soft); border-radius: 4px; padding: 2px 8px; }
+.due { text-align: right; display: grid; gap: 4px; justify-items: end; align-content: start; }
+.due .date { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.late { background: var(--late-soft); color: var(--late); }
+.pill.today { background: var(--warn-soft); color: var(--warn); }
+.pill.soon { background: var(--info-soft); color: var(--info); }
+.pill.calm { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.pill.done { background: var(--ok-soft); color: var(--ok); }
+
+.custom { grid-column: 1 / -1; border: 2px dashed var(--tone); border-radius: 10px; padding: 10px 14px; background: var(--tone-soft); min-width: 0; }
+.t-papelaria .custom { border-style: solid; border-width: 1px 1px 1px 6px; }
+.custom .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--tone); }
+.custom .text { font-family: var(--f-display); font-size: 21px; font-weight: 500; overflow-wrap: anywhere; white-space: pre-wrap; }
+.quick { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.quick .left { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.specs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 0; }
+.specs div { min-width: 0; }
+.specs dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.specs dd { margin: 0; overflow-wrap: anywhere; }
+.pay { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.pay .val { font-family: var(--f-display); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+.pay .how { color: var(--muted); font-size: 14px; flex: 1 1 160px; min-width: 0; }
+.pay .btn.small { margin-left: auto; }
+.obs { grid-column: 1 / -1; color: var(--muted); font-size: 14px; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.timeline { grid-column: 1 / -1; display: grid; gap: 6px; }
+.timeline h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-family: var(--f-body); font-weight: 700; }
+.timeline ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px dotted var(--line); display: grid; gap: 6px; }
+.timeline li { font-size: 14px; position: relative; overflow-wrap: anywhere; }
+.timeline li::before { content: ""; position: absolute; left: -19px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.timeline time { font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-right: 6px; }
+.timeline .por { color: var(--muted); }
+.card-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; }
+.step { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.step[aria-pressed="true"] { background: var(--tone); border-color: var(--tone); color: #fff; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.confirm-del { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--late); font-weight: 600; }
+
+/* Histórico */
+.month { display: grid; gap: 8px; }
+.month-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; border-bottom: 2px dashed var(--line); padding-bottom: 6px; }
+.month-head h2 { font-size: 18px; text-transform: capitalize; }
+.month-head span { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.hrow { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; }
+.hrow:hover { border-color: var(--tone); }
+.hrow .d { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.hrow .m { min-width: 0; display: grid; }
+.hrow .m b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow .m small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow .r { display: grid; justify-items: end; gap: 2px; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.empty { border: 2px dashed var(--line); border-radius: 12px; padding: 32px 20px; text-align: center; color: var(--muted); display: grid; gap: 10px; justify-items: center; background: var(--surface); }
+.empty h2 { font-size: 20px; color: var(--fg); }
+.notice { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 14px; font-weight: 500; }
+
+/* Painel do formulário */
+.scrim { position: fixed; inset: 0; background: rgba(59,31,44,.4); z-index: 10; }
+.panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--surface); z-index: 11; display: flex; flex-direction: column; box-shadow: -8px 0 32px rgba(59,31,44,.15); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { font-size: 20px; }
+form { overflow-y: auto; padding: 16px 20px 24px; display: grid; gap: 18px; flex: 1; overscroll-behavior: contain; }
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+legend { font-family: var(--f-display); font-weight: 700; font-size: 15px; color: var(--tone); padding: 0; margin-bottom: 8px; }
+.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+label input, label select, label textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; font-weight: 400; color: var(--fg); font-size: 15px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 64px; }
+.req { color: var(--tone); }
+.pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pick label { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--fg); font-size: 14px; cursor: pointer; }
+.pick input { width: auto; accent-color: var(--tone); }
+.pick label:has(input:checked) { border-color: var(--tone); background: var(--tone-soft); }
+.form-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--line); }
+.form-foot .btn.primary { background: var(--tone); border-color: var(--tone); }
+.form-err { color: var(--late); font-weight: 600; font-size: 14px; }
+
+.bottomnav { display: none; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--accent); color: #fff; padding: 10px 16px; border-radius: 8px; font-weight: 600; z-index: 20; max-width: calc(100% - 32px); text-align: center; }
+
+/* Celular */
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .wrap { padding-block: 14px calc(96px + env(safe-area-inset-bottom, 0px)); gap: 14px; }
+  header.top p, header.top .btn.primary, .views { display: none; }
+  header.top h1 { font-size: 24px; }
+  .store { padding: 9px 8px; }
+  .store .sub { display: none; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .sum { padding: 9px 12px; }
+  .sum b { font-size: 22px; }
+  .toolbar { display: grid; gap: 8px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: var(--bg); margin-inline: -16px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; padding: 8px 14px; }
+  #busca { width: 100%; padding: 10px 12px; font-size: 16px; }
+  .card { grid-template-columns: 1fr; padding: 14px; gap: 10px; }
+  .due { text-align: left; justify-items: start; grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; grid-row: 1; }
+  .custom .text { font-size: 19px; }
+  .specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pay .btn.small { margin-left: 0; width: 100%; padding: 10px; font-size: 15px; }
+  .quick .btn.link { padding: 8px 0; font-size: 15px; }
+  .card-foot { display: grid; gap: 10px; }
+  .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .step { padding: 11px 2px; font-size: 13px; }
+  .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .actions .btn.small { padding: 10px 4px; font-size: 14px; }
+  .confirm-del { grid-column: 1 / -1; flex-wrap: wrap; }
+  .confirm-del .btn.small { flex: 1; padding: 10px; }
+  .hrow { grid-template-columns: minmax(0, 1fr) auto; padding: 12px; }
+  .hrow .d { grid-column: 1 / -1; }
+  .panel-head { padding: 12px 16px; }
+  form { padding: 14px 16px 24px; }
+  .row, .pick { grid-template-columns: 1fr; }
+  label input, label select, label textarea { font-size: 16px; padding: 11px 12px; }
+  .pick label { padding: 12px; font-size: 16px; }
+  .form-foot { padding: 12px 16px; }
+  .form-foot .btn { flex: 1; padding: 13px; font-size: 16px; }
+  .bottomnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 16px rgba(214,51,132,.08); }
+  .bottomnav .nav { border: 0; background: transparent; padding: 8px 4px; font-weight: 600; color: var(--muted); display: grid; justify-items: center; gap: 1px; font-size: 14px; }
+  .bottomnav .nav small { font-family: var(--f-mono); font-size: 11px; }
+  .bottomnav .nav[aria-pressed="true"] { color: var(--accent); }
+  .bottomnav .nav[aria-pressed="true"] span { border-bottom: 2px solid var(--accent); }
+  .bottomnav .add { padding: 12px 20px; border-radius: 999px; font-size: 16px; box-shadow: 0 4px 14px rgba(214,51,132,.35); }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 360px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: no-preference) { .panel { animation: slide .18s ease-out; } @keyframes slide { from { transform: translateX(24px); opacity: .6; } } }
+
+.session { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; color: var(--muted); }
+.session .btn.link { font-size: 13px; padding: 0; }
+/* Enquanto confere o login, não mostra nada da página */
+html.checando body { visibility: hidden; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Bastidor de Pedidos</h1>
+      <p>Encomendas personalizadas das duas lojas: peça, personalização, pagamento e prazo.</p>
+      <div class="session"><span id="quem"></span><span id="atualizado"></span><button type="button" class="btn link" id="sair">Sair</button></div>
+    </div>
+    <button class="btn primary" id="novo" type="button">+ Novo pedido</button>
+  </header>
+  <div class="stitch" aria-hidden="true"></div>
+
+  <nav class="stores" id="lojas" aria-label="Escolher loja"></nav>
+  <div class="views" role="group" aria-label="Trocar de vista">
+    <button type="button" data-vista="pedidos" aria-pressed="true">Pedidos em aberto</button>
+    <button type="button" data-vista="historico" aria-pressed="false">Histórico</button>
+  </div>
+
+  <div id="aviso" class="notice" hidden></div>
+
+  <section class="summary" id="resumo" aria-label="Resumo"></section>
+
+  <div class="toolbar">
+    <div class="tabs" id="tabs" role="group" aria-label="Filtrar por etapa"></div>
+    <input id="busca" type="search" placeholder="Buscar cliente, peça ou texto…" aria-label="Buscar pedidos">
+  </div>
+
+  <section class="list" id="lista" aria-live="polite">
+    <div class="empty"><h2>Carregando pedidos…</h2></div>
+  </section>
+</div>
+
+<nav class="bottomnav" aria-label="Navegação">
+  <button type="button" class="nav" data-vista="pedidos" aria-pressed="true"><span>Pedidos</span><small id="nav-abertos">0</small></button>
+  <button type="button" class="btn primary add" id="novo-nav">+ Novo</button>
+  <button type="button" class="nav" data-vista="historico" aria-pressed="false"><span>Histórico</span><small id="nav-hist">0</small></button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="panel t-bordados" id="painel" hidden aria-labelledby="painel-titulo" role="dialog" aria-modal="true">
+  <div class="panel-head">
+    <h2 id="painel-titulo">Novo pedido</h2>
+    <button class="btn small" type="button" id="fechar">Fechar</button>
+  </div>
+  <form id="form" novalidate>
+    <fieldset>
+      <legend>Loja</legend>
+      <div class="pick" id="f-loja-grupo">
+        <label><input type="radio" name="loja" id="f-loja-bordados" value="bordados" checked> Bordados e Aviamentos</label>
+        <label><input type="radio" name="loja" id="f-loja-papelaria" value="papelaria"> Papelaria Criativa</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Cliente</legend>
+      <div class="row">
+        <label>Nome <span class="req">*</span><input id="f-cliente" name="cliente" autocomplete="off"></label>
+        <label>WhatsApp / telefone<input id="f-telefone" name="telefone" inputmode="tel" autocomplete="off"></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Peça</legend>
+      <div class="row">
+        <label>Produto <span class="req">*</span><select id="f-produto" name="produto"></select></label>
+        <label>Quantidade<input id="f-qtd" name="qtd" type="number" min="1" value="1" inputmode="numeric"></label>
+      </div>
+      <label><span id="l-corPeca">Cor / modelo da peça</span><input id="f-corPeca" name="corPeca"></label>
+    </fieldset>
+    <fieldset>
+      <legend id="l-legend">Bordado</legend>
+      <label><span><span id="l-bordado">O que vai ser bordado</span> <span class="req">*</span></span><textarea id="f-bordado" name="bordado"></textarea></label>
+      <div class="row">
+        <label><span id="l-local">Onde bordar</span><select id="f-local" name="local"></select></label>
+        <label><span id="l-tamanho">Tamanho do bordado</span><input id="f-tamanho" name="tamanho"></label>
+      </div>
+      <div class="row">
+        <label><span id="l-tecnica">Técnica / jeito de fazer</span><select id="f-tecnica" name="tecnica"></select></label>
+        <label><span id="l-fonte">Fonte / letra</span><input id="f-fonte" name="fonte"></label>
+      </div>
+      <label><span id="l-corLinha">Cor da linha</span><input id="f-corLinha" name="corLinha"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Pagamento</legend>
+      <div class="row">
+        <label>Valor total (R$)<input id="f-valor" name="valor" inputmode="decimal" placeholder="Ex.: 120,00" autocomplete="off"></label>
+        <label>Já pago (R$)<input id="f-pago" name="pago" inputmode="decimal" placeholder="Ex.: 60,00 de sinal" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label>Condição
+          <select id="f-condicao" name="condicao">
+            <option>Sinal + restante na entrega</option><option>À vista</option>
+            <option>Pago na entrega</option><option>Parcelado no cartão</option>
+          </select>
+        </label>
+        <label>Forma de pagamento
+          <select id="f-forma" name="forma">
+            <option>Pix</option><option>Dinheiro</option><option>Cartão de crédito</option>
+            <option>Cartão de débito</option><option>Link de pagamento</option>
+          </select>
+        </label>
+      </div>
+      <label id="l-parcelas" hidden>Parcelas<input id="f-parcelas" name="parcelas" type="number" min="1" max="24" placeholder="Ex.: 3" inputmode="numeric"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Prazo e andamento</legend>
+      <div class="row">
+        <label>Prazo de entrega <span class="req">*</span><input id="f-prazo" name="prazo" type="date"></label>
+        <label>Etapa
+          <select id="f-status" name="status">
+            <option value="a_fazer">A fazer</option><option value="bordando" id="f-status-fazendo">Bordando</option>
+            <option value="pronto">Pronto</option><option value="entregue">Entregue</option>
+          </select>
+        </label>
+      </div>
+      <label>Observações<textarea id="f-obs" name="obs" placeholder="Ex.: cliente vai buscar na loja; enviar foto antes"></textarea></label>
+    </fieldset>
+    <p class="form-err" id="form-err" hidden></p>
+  </form>
+  <div class="form-foot">
+    <button class="btn" type="button" id="cancelar">Cancelar</button>
+    <button class="btn primary" type="submit" form="form" id="salvar">Salvar pedido</button>
+  </div>
+</aside>
+
+<div class="toast" id="toast" hidden></div>
+<script>
+(function () {
+  const LOJAS = {
+    bordados: {
+      nome: "Bordados e Aviamentos", curto: "Bordados", faixa: "Bordar", legend: "Bordado", fazendo: "Bordando",
+      produtos: ["Toalha de banho","Toalha de rosto","Toalha de lavabo","Pano de prato","Fralda de boca","Babador","Roupão","Jogo de toalhas","Outro"],
+      locais: ["Barrado (faixa inferior)","Centro da barra","Canto inferior direito","Canto inferior esquerdo","Centro da peça","Peito (roupão)","Costas (roupão)","Outro"],
+      tecnicas: ["Bordado computadorizado","Ponto cheio","Ponto cruz","Aplique","Pesponto / contorno","Outro"],
+      rotulos: { bordado: "O que vai ser bordado", local: "Onde bordar", tamanho: "Tamanho do bordado", tecnica: "Técnica / jeito de fazer", fonte: "Fonte / letra", corLinha: "Cor da linha", corPeca: "Cor / modelo da peça" },
+      curtos: { local: "Onde", tecnica: "Técnica", fonte: "Letra", corLinha: "Linha", tamanho: "Tamanho", corPeca: "Peça" },
+      dicas: { bordado: "Ex.: Família Souza + monograma S", tamanho: "Ex.: 12 cm de largura", fonte: "Ex.: cursiva, bastão", corLinha: "Ex.: rosa antigo nº 1121", corPeca: "Ex.: branca, felpuda 70×140 cm" },
+    },
+    papelaria: {
+      nome: "Papelaria Criativa", curto: "Papelaria", faixa: "Personalizar", legend: "Personalização", fazendo: "Produzindo",
+      produtos: ["Agenda","Planner","Caderno","Bloco de anotações","Caneca","Caneca de chopp","Squeeze / garrafa","Convite","Topo de bolo","Kit festa","Etiquetas","Outro"],
+      locais: ["Capa","Capa e contracapa","Frente","Volta inteira (360°)","Alça / lateral","Miolo / páginas internas","Outro"],
+      tecnicas: ["Sublimação","Impressão digital","Adesivo / vinil recortado","Gravação a laser","Hot stamping (dourado)","Encadernação personalizada","Outro"],
+      rotulos: { bordado: "Texto / nome a personalizar", local: "Onde aplicar", tamanho: "Tamanho / formato", tecnica: "Técnica", fonte: "Tema / arte", corLinha: "Cores da arte", corPeca: "Modelo / acabamento" },
+      curtos: { local: "Onde", tecnica: "Técnica", fonte: "Tema", corLinha: "Cores", tamanho: "Formato", corPeca: "Modelo" },
+      dicas: { bordado: "Ex.: Agenda 2027 da Ana Clara", tamanho: "Ex.: A5, 325 ml", fonte: "Ex.: floral aquarela, Stitch", corLinha: "Ex.: lilás e dourado", corPeca: "Ex.: capa dura, wire-o dourado" },
+    },
+  };
+  const lojaDe = p => (p && LOJAS[p.loja]) ? p.loja : "bordados";
+  const ETAPAS = [
+    { id: "a_fazer", nome: "A fazer" },
+    { id: "bordando", nome: "Fazendo" },
+    { id: "pronto", nome: "Pronto" },
+    { id: "entregue", nome: "Entregue" },
+  ];
+  const nomeEtapa = (id, loja) => id === "bordando" && loja ? LOJAS[loja].fazendo : (ETAPAS.find(e => e.id === id) || ETAPAS[0]).nome;
+  const CAMPOS = ["cliente","telefone","produto","qtd","corPeca","bordado","local","tamanho","tecnica","fonte","corLinha","prazo","status","obs","valor","pago","condicao","forma","parcelas"];
+  const SELECTS_DA_LOJA = ["produto","local","tecnica"];
+  const FILTROS = ["abertos","a_fazer","bordando","pronto"];
+
+  let sessao = null, pedidos = null, ultima = null;
+  let vista = "pedidos", filtro = "abertos", lojaFiltro = "todas", busca = "";
+  let editando = null, apagando = null, podeEscrever = true;
+  const expandido = new Set();
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  try {
+    const f = localStorage.getItem("bastidor-filtro"); if (FILTROS.includes(f)) filtro = f;
+    const l = localStorage.getItem("bastidor-loja"); if (l === "todas" || LOJAS[l]) lojaFiltro = l;
+    const v = localStorage.getItem("bastidor-vista"); if (v === "pedidos" || v === "historico") vista = v;
+  } catch (e) {}
+
+  // Datas
+  function hoje() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function diasAte(prazo) {
+    if (!prazo) return null;
+    const [y, m, d] = prazo.split("-").map(Number);
+    return Math.round((new Date(y, m - 1, d) - hoje()) / 86400000);
+  }
+  function fmtData(prazo) {
+    if (!prazo) return "sem prazo";
+    const [y, m, d] = prazo.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+  const fmtHora = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+  function dataEntrega(p) {
+    const iso = p.entregueEm || p.atualizadoEm || (p.prazo ? p.prazo + "T12:00:00" : p.criadoEm);
+    const d = new Date(iso); return isNaN(d) ? new Date(0) : d;
+  }
+  function pillPrazo(p) {
+    if (p.status === "entregue") return '<span class="pill done">Entregue</span>';
+    const n = diasAte(p.prazo);
+    if (n === null) return '<span class="pill calm">Sem prazo</span>';
+    if (n < 0) return `<span class="pill late">Atrasado ${-n} dia${n === -1 ? "" : "s"}</span>`;
+    if (n === 0) return '<span class="pill today">Vence hoje</span>';
+    if (n === 1) return '<span class="pill soon">Vence amanhã</span>';
+    if (n <= 7) return `<span class="pill soon">Faltam ${n} dias</span>`;
+    return `<span class="pill calm">Faltam ${n} dias</span>`;
+  }
+
+  // Dinheiro: aceita "120,50", "1.200,50" ou "120.50"
+  function lerReais(s) {
+    s = String(s || "").replace(/[^\d.,]/g, "");
+    if (!s) return 0;
+    if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(s);
+    return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  }
+  const reais = n => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const paraCampo = n => Number(n) > 0 ? Number(n).toFixed(2).replace(".", ",") : "";
+  const falta = p => Math.max(0, (Number(p.valor) || 0) - (Number(p.pago) || 0));
+  function pillPagamento(p) {
+    if (!(Number(p.valor) > 0)) return '<span class="pill calm">Sem valor</span>';
+    if (falta(p) === 0) return '<span class="pill done">Pago</span>';
+    if (Number(p.pago) > 0) return `<span class="pill today">Falta ${reais(falta(p))}</span>`;
+    return '<span class="pill late">Não pago</span>';
+  }
+  function comoPaga(p) {
+    const parc = p.condicao === "Parcelado no cartão" && Number(p.parcelas) > 1 ? ` em ${Number(p.parcelas)}x` : "";
+    return [p.condicao ? p.condicao + parc : "", p.forma, Number(p.pago) > 0 && falta(p) > 0 ? `já pago ${reais(p.pago)}` : ""].filter(Boolean).join(" · ");
+  }
+
+  // Servidor (api/pedidos.js). O servidor grava data, hora e nome de quem fez cada evento.
+  class ErroApi extends Error { constructor(code, message) { super(message); this.code = code; } }
+  async function chamar(metodo, id, corpo) {
+    let r;
+    try {
+      r = await fetch("/api/pedidos" + (id ? "?id=" + encodeURIComponent(id) : ""), {
+        method: metodo, cache: "no-store", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+    } catch (e) { throw new ErroApi("offline", "Sem internet. Confira a conexão e tente de novo."); }
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) { irParaLogin(); throw new ErroApi("auth", j.erro || "Sua sessão acabou."); }
+    if (!r.ok) throw new ErroApi("server", j.erro || "Erro no servidor. Tente de novo.");
+    return j;
+  }
+  async function carregar() {
+    try {
+      pedidos = await chamar("GET");
+      ultima = new Date();
+      $("aviso").hidden = true;
+      render();
+    } catch (e) {
+      if (e.code === "auth") return;
+      $("aviso").textContent = pedidos ? e.message + " Mostrando a última lista carregada." : e.message;
+      $("aviso").hidden = false;
+      if (pedidos === null) { pedidos = []; render(); }
+    }
+  }
+  // Grava e recarrega a lista; devolve false se deu erro (a mensagem já foi mostrada)
+  async function gravar(metodo, id, corpo, ok) {
+    try { await chamar(metodo, id, corpo); if (ok) toast(ok); await carregar(); return true; }
+    catch (e) {
+      if (e.code !== "auth") toast(e.message);
+      return false;
+    }
+  }
+
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2600);
+  }
+
+  const daLoja = () => (pedidos || []).filter(p => lojaFiltro === "todas" || lojaDe(p) === lojaFiltro);
+  const bate = p => {
+    const q = busca.trim().toLowerCase();
+    return !q || [p.cliente, p.produto, p.bordado, p.telefone, p.obs].some(v => String(v || "").toLowerCase().includes(q));
+  };
+  const abertos = () => daLoja().filter(p => p.status !== "entregue");
+  const entregues = () => daLoja().filter(p => p.status === "entregue");
+
+  function renderLojas() {
+    const todos = pedidos || [];
+    const n = l => todos.filter(p => (l === "todas" || lojaDe(p) === l) && (vista === "historico" ? p.status === "entregue" : p.status !== "entregue")).length;
+    const rot = vista === "historico" ? "entregues" : "em aberto";
+    const opcoes = [
+      { id: "todas", nome: "Todas", sub: "As duas lojas" },
+      { id: "bordados", nome: LOJAS.bordados.curto, sub: "Bordados e Aviamentos" },
+      { id: "papelaria", nome: LOJAS.papelaria.curto, sub: "Papelaria Criativa" },
+    ];
+    $("lojas").innerHTML = opcoes.map(o =>
+      `<button type="button" class="store${o.id !== "todas" ? " t-" + o.id : ""}" data-loja="${o.id}" aria-pressed="${lojaFiltro === o.id}">
+        <b>${o.nome}</b><small><span class="sub">${o.sub} · </span>${n(o.id)} ${rot}</small></button>`).join("");
+  }
+
+  function renderVistas() {
+    document.querySelectorAll("[data-vista]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.vista === vista)));
+    const todos = pedidos || [];
+    $("nav-abertos").textContent = todos.filter(p => p.status !== "entregue").length;
+    $("nav-hist").textContent = todos.filter(p => p.status === "entregue").length;
+    $("tabs").hidden = vista !== "pedidos";
+  }
+
+  function renderResumo() {
+    if (vista === "pedidos") {
+      let late = 0, today = 0, week = 0;
+      abertos().forEach(p => { const n = diasAte(p.prazo); if (n === null) return; if (n < 0) late++; else if (n === 0) today++; else if (n <= 7) week++; });
+      $("resumo").innerHTML = `
+        <div class="sum late"><b>${late}</b><span>Atrasados</span></div>
+        <div class="sum today"><b>${today}</b><span>Vencem hoje</span></div>
+        <div class="sum"><b>${week}</b><span>Próx. 7 dias</span></div>
+        <div class="sum money"><b>${reais(daLoja().reduce((t, p) => t + falta(p), 0))}</b><span>A receber</span></div>`;
+    } else {
+      const ent = entregues();
+      const ini = new Date(hoje().getFullYear(), hoje().getMonth(), 1);
+      const doMes = ent.filter(p => dataEntrega(p) >= ini);
+      $("resumo").innerHTML = `
+        <div class="sum"><b>${doMes.length}</b><span>Entregues no mês</span></div>
+        <div class="sum money"><b>${reais(doMes.reduce((t, p) => t + (Number(p.valor) || 0), 0))}</b><span>Vendido no mês</span></div>
+        <div class="sum"><b>${ent.length}</b><span>Total entregues</span></div>
+        <div class="sum late"><b>${reais(ent.reduce((t, p) => t + falta(p), 0))}</b><span>Entregue sem pagar</span></div>`;
+    }
+  }
+
+  function renderTabs() {
+    const ab = abertos();
+    const cont = id => id === "abertos" ? ab.length : ab.filter(p => p.status === id).length;
+    const tabs = [{ id: "abertos", nome: "Todos em aberto" }, ...ETAPAS.filter(e => e.id !== "entregue").map(e => ({ id: e.id, nome: lojaFiltro !== "todas" ? nomeEtapa(e.id, lojaFiltro) : e.nome }))];
+    $("tabs").innerHTML = tabs.map(t =>
+      `<button type="button" class="tab" data-tab="${t.id}" aria-pressed="${filtro === t.id}">${t.nome}<small>${cont(t.id)}</small></button>`).join("");
+  }
+
+  function timelineHTML(p) {
+    const hs = Array.isArray(p.historico) ? p.historico.slice().reverse() : [];
+    if (!hs.length) return "";
+    return `<div class="timeline"><h3>Histórico do pedido</h3><ol>${hs.map(h =>
+      `<li><time>${esc(fmtHora(h.em))}</time>${esc(h.txt)}${h.por ? ` <span class="por">· ${esc(h.por)}</span>` : ""}</li>`).join("")}</ol></div>`;
+  }
+
+  function cardHTML(p) {
+    const loja = lojaDe(p), L = LOJAS[loja];
+    const aberto = expandido.has(p.id);
+    const n = diasAte(p.prazo);
+    const late = p.status !== "entregue" && n !== null && n < 0;
+    const specs = ["local","tecnica","fonte","corLinha","tamanho","corPeca"].filter(k => p[k]).map(k => [L.curtos[k], p[k]]);
+    const qtd = Number(p.qtd) > 1 ? ` × ${Number(p.qtd)}` : "";
+    const dis = podeEscrever ? "" : "disabled";
+    const del = apagando === p.id
+      ? `<span class="confirm-del">Apagar este pedido? <button class="btn small danger" data-act="del-ok" data-id="${p.id}">Apagar</button><button class="btn small" data-act="del-no">Não</button></span>`
+      : `<button class="btn small" data-act="del" data-id="${p.id}" ${dis}>Apagar</button>`;
+    const detalhes = aberto ? `
+      ${specs.length ? `<dl class="specs">${specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : ""}
+      <div class="pay">
+        ${Number(p.valor) > 0 ? `<span class="val">${reais(p.valor)}</span>` : ""}${pillPagamento(p)}
+        ${Number(p.valor) > 0 ? `<span class="how">${esc(comoPaga(p))}</span>` : ""}
+        ${Number(p.valor) > 0 && falta(p) > 0 ? `<button class="btn small" data-act="pagar" data-id="${p.id}" ${dis}>Marcar como pago</button>` : ""}
+      </div>
+      ${p.obs ? `<p class="obs">${esc(p.obs)}</p>` : ""}
+      ${timelineHTML(p)}` : "";
+    return `<article class="card t-${loja}${late ? " is-late" : ""}" id="c-${p.id}">
+      <div class="card-head">${lojaFiltro === "todas" ? `<span class="tag">${L.curto}</span>` : ""}<h2>${esc(p.produto || "Peça")}${qtd}</h2>
+        <div class="who">${esc(p.cliente)}${p.telefone ? " · " + esc(p.telefone) : ""}</div></div>
+      <div class="due">${pillPrazo(p)}<span class="date">${esc(fmtData(p.prazo))}</span></div>
+      <div class="custom"><div class="label">${L.faixa}</div><div class="text">${esc(p.bordado)}</div></div>
+      <div class="quick">
+        <div class="left">${pillPagamento(p)}</div>
+        <button type="button" class="btn link" data-act="toggle" data-id="${p.id}" aria-expanded="${aberto}">${aberto ? "Fechar detalhes ▴" : "Ver detalhes ▾"}</button>
+      </div>
+      ${detalhes}
+      <div class="card-foot">
+        <div class="steps" role="group" aria-label="Etapa">${ETAPAS.map(e =>
+          `<button type="button" class="step" data-act="status" data-id="${p.id}" data-status="${e.id}" aria-pressed="${p.status === e.id}" ${dis}>${nomeEtapa(e.id, loja)}</button>`).join("")}</div>
+        ${aberto ? `<div class="actions">
+          <button class="btn small" data-act="copy" data-id="${p.id}">Copiar ficha</button>
+          <button class="btn small" data-act="edit" data-id="${p.id}" ${dis}>Editar</button>
+          ${del}
+        </div>` : ""}
+      </div>
+    </article>`;
+  }
+
+  function vazio(titulo, texto, botao) {
+    return `<div class="empty"><h2>${titulo}</h2><p>${texto}</p>${botao ? '<button class="btn primary" type="button" data-act="novo">+ Novo pedido</button>' : ""}</div>`;
+  }
+
+  function renderPedidos() {
+    const lista = abertos().filter(p => filtro === "abertos" || p.status === filtro).filter(bate)
+      .sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"));
+    if (!abertos().length) {
+      const onde = lojaFiltro === "todas" ? "" : ` na ${LOJAS[lojaFiltro].nome}`;
+      return vazio(`Nenhum pedido em aberto${onde}`, "Cadastre uma encomenda: a peça, o que personalizar, pagamento e prazo. Ela aparece aqui para toda a equipe, de qualquer lugar.", true);
+    }
+    if (!lista.length) return vazio("Nada por aqui", "Troque a etapa ou a busca para ver outros pedidos.");
+    return lista.map(cardHTML).join("");
+  }
+
+  function renderHistorico() {
+    const lista = entregues().filter(bate).sort((a, b) => dataEntrega(b) - dataEntrega(a));
+    if (!entregues().length) return vazio("O histórico está vazio", "Quando um pedido for marcado como Entregue, ele sai da lista de abertos e fica guardado aqui, separado por mês.");
+    if (!lista.length) return vazio("Nada encontrado", "Nenhum pedido entregue bate com essa busca.");
+    const grupos = new Map();
+    lista.forEach(p => { const d = dataEntrega(p); const k = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(p); });
+    return [...grupos.entries()].map(([k, ps]) => {
+      const [y, m] = k.split("-").map(Number);
+      const mes = new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      const total = ps.reduce((t, p) => t + (Number(p.valor) || 0), 0);
+      return `<section class="month"><div class="month-head"><h2>${mes}</h2><span>${ps.length} pedido${ps.length > 1 ? "s" : ""} · ${reais(total)}</span></div>
+        ${ps.map(p => expandido.has(p.id) ? cardHTML(p) : `
+          <button type="button" class="hrow t-${lojaDe(p)}" data-act="toggle" data-id="${p.id}">
+            <span class="d">${dataEntrega(p).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+            <span class="m"><b>${esc(p.cliente)}</b><small>${lojaFiltro === "todas" ? LOJAS[lojaDe(p)].curto + " · " : ""}${esc(p.produto)}${Number(p.qtd) > 1 ? " × " + Number(p.qtd) : ""} · ${esc(p.bordado)}</small></span>
+            <span class="r">${Number(p.valor) > 0 ? reais(p.valor) : ""}${pillPagamento(p)}</span>
+          </button>`).join("")}
+      </section>`;
+    }).join("");
+  }
+
+  function render() {
+    renderLojas(); renderVistas(); renderResumo(); renderTabs(); mostrarSessao();
+    if (pedidos === null) { $("lista").innerHTML = '<div class="empty"><h2>Carregando pedidos…</h2></div>'; return; }
+    $("lista").innerHTML = vista === "pedidos" ? renderPedidos() : renderHistorico();
+  }
+
+  // Formulário: rótulos e opções mudam conforme a loja
+  function preencherSelect(el, opcoes, valor, vazioTxt) {
+    const lista = valor && !opcoes.includes(valor) ? [valor, ...opcoes] : opcoes;
+    el.innerHTML = (vazioTxt ? `<option value="">${vazioTxt}</option>` : "") + lista.map(o => `<option>${esc(o)}</option>`).join("");
+    el.value = valor || (vazioTxt ? "" : lista[0]);
+  }
+  function aplicarLoja(loja, p) {
+    const L = LOJAS[loja];
+    $("painel").className = "panel t-" + loja;
+    $("l-legend").textContent = L.legend;
+    Object.entries(L.rotulos).forEach(([k, v]) => { $("l-" + k).textContent = v; });
+    Object.entries(L.dicas).forEach(([k, v]) => { $("f-" + k).placeholder = v; });
+    $("f-status-fazendo").textContent = L.fazendo;
+    preencherSelect($("f-produto"), L.produtos, p ? p.produto : "", "Escolha…");
+    preencherSelect($("f-local"), L.locais, p ? p.local : "");
+    preencherSelect($("f-tecnica"), L.tecnicas, p ? p.tecnica : "");
+  }
+  const lojaForm = () => $("f-loja-papelaria").checked ? "papelaria" : "bordados";
+  function mostrarParcelas() { $("l-parcelas").hidden = $("f-condicao").value !== "Parcelado no cartão"; }
+
+  function abrir(p) {
+    editando = p ? p.id : null;
+    $("painel-titulo").textContent = p ? "Editar pedido" : "Novo pedido";
+    $("form").reset();
+    $("form-err").hidden = true;
+    const loja = p ? lojaDe(p) : (lojaFiltro !== "todas" ? lojaFiltro : "bordados");
+    $("f-loja-" + loja).checked = true;
+    aplicarLoja(loja, p || null);
+    if (p) CAMPOS.forEach(c => { const el = $("f-" + c); if (el && p[c] != null && p[c] !== "" && !SELECTS_DA_LOJA.includes(c)) el.value = p[c]; });
+    if (p) { $("f-valor").value = paraCampo(p.valor); $("f-pago").value = paraCampo(p.pago); }
+    mostrarParcelas();
+    $("scrim").hidden = false; $("painel").hidden = false;
+    document.body.style.overflow = "hidden";
+    if (!p && window.matchMedia("(min-width: 641px)").matches) setTimeout(() => $("f-cliente").focus(), 30);
+  }
+  function fechar() { $("scrim").hidden = true; $("painel").hidden = true; editando = null; document.body.style.overflow = ""; }
+
+  async function salvar(ev) {
+    ev.preventDefault();
+    const dados = { loja: lojaForm() };
+    CAMPOS.forEach(c => { dados[c] = $("f-" + c).value.trim(); });
+    dados.qtd = Math.max(1, parseInt(dados.qtd, 10) || 1);
+    dados.valor = lerReais(dados.valor);
+    dados.pago = lerReais(dados.pago);
+    dados.parcelas = dados.condicao === "Parcelado no cartão" ? Math.max(1, parseInt(dados.parcelas, 10) || 1) : 0;
+    const erro = msg => { $("form-err").textContent = msg; $("form-err").hidden = false; $("form-err").scrollIntoView({ block: "nearest" }); };
+    if (dados.valor > 0 && dados.pago > dados.valor) return erro("O valor já pago está maior que o valor total.");
+    const faltando = [["cliente","nome do cliente"],["produto","produto"],["bordado","o que personalizar"],["prazo","prazo"]].filter(([k]) => !dados[k]).map(([, n]) => n);
+    if (faltando.length) return erro("Preencha: " + faltando.join(", ") + ".");
+    $("salvar").disabled = true;
+    const agora = new Date().toISOString();
+    try {
+      if (editando) {
+        const antigo = (pedidos || []).find(p => p.id === editando) || {};
+        const txts = ["Pedido editado"];
+        if (antigo.status !== dados.status) txts.push("Etapa: " + nomeEtapa(dados.status, dados.loja));
+        if ((Number(antigo.pago) || 0) !== dados.pago) txts.push("Pagamento: já pago " + reais(dados.pago));
+        const entregueEm = dados.status === "entregue" ? (antigo.status === "entregue" && antigo.entregueEm ? antigo.entregueEm : agora) : null;
+        await chamar("PUT", editando, { dados: { ...dados, entregueEm }, eventos: txts });
+        toast("Pedido atualizado");
+      } else {
+        const txts = ["Pedido criado"];
+        if (dados.pago > 0) txts.push("Recebido " + reais(dados.pago));
+        await chamar("POST", null, { dados: { ...dados, entregueEm: dados.status === "entregue" ? agora : null }, eventos: txts });
+        toast("Pedido salvo em " + LOJAS[dados.loja].curto);
+      }
+      fechar();
+      await carregar();
+    } catch (e) {
+      if (e.code !== "auth") erro(e.message || "Não foi possível salvar. Tente de novo.");
+    } finally { $("salvar").disabled = false; }
+  }
+
+  function textoFicha(p) {
+    const loja = lojaDe(p), L = LOJAS[loja];
+    return [
+      `[${L.nome}]`,
+      `*${p.produto}${Number(p.qtd) > 1 ? " × " + p.qtd : ""}* — ${p.cliente}`,
+      `${L.faixa}: ${p.bordado}`,
+      ...["local","tecnica","fonte","corLinha","tamanho","corPeca"].filter(k => p[k]).map(k => `${L.curtos[k]}: ${p[k]}`),
+      `Prazo: ${fmtData(p.prazo)}`, `Etapa: ${nomeEtapa(p.status, loja)}`,
+      Number(p.valor) > 0 && `Valor: ${reais(p.valor)} (${comoPaga(p)})${falta(p) > 0 ? ` — falta ${reais(falta(p))}` : " — pago"}`,
+      p.obs && `Obs.: ${p.obs}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  function trocarVista(v) {
+    vista = v; busca = ""; $("busca").value = "";
+    try { localStorage.setItem("bastidor-vista", vista); } catch (e) {}
+    render(); window.scrollTo({ top: 0 });
+  }
+
+  // Eventos
+  $("novo").addEventListener("click", () => abrir(null));
+  $("novo-nav").addEventListener("click", () => abrir(null));
+  $("fechar").addEventListener("click", fechar);
+  $("cancelar").addEventListener("click", fechar);
+  $("scrim").addEventListener("click", fechar);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("painel").hidden) fechar(); });
+  $("form").addEventListener("submit", salvar);
+  $("f-loja-grupo").addEventListener("change", () => aplicarLoja(lojaForm(), null));
+  $("f-condicao").addEventListener("change", mostrarParcelas);
+  $("busca").addEventListener("input", e => { busca = e.target.value; render(); });
+  document.querySelectorAll("[data-vista]").forEach(b => b.addEventListener("click", () => trocarVista(b.dataset.vista)));
+  $("lojas").addEventListener("click", e => {
+    const b = e.target.closest("[data-loja]"); if (!b) return;
+    lojaFiltro = b.dataset.loja; try { localStorage.setItem("bastidor-loja", lojaFiltro); } catch (er) {}
+    render();
+  });
+  $("tabs").addEventListener("click", e => {
+    const b = e.target.closest("[data-tab]"); if (!b) return;
+    filtro = b.dataset.tab; try { localStorage.setItem("bastidor-filtro", filtro); } catch (er) {}
+    render();
+  });
+  $("lista").addEventListener("click", async e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const p = (pedidos || []).find(x => x.id === b.dataset.id);
+    switch (b.dataset.act) {
+      case "novo": abrir(null); break;
+      case "toggle":
+        expandido.has(b.dataset.id) ? expandido.delete(b.dataset.id) : expandido.add(b.dataset.id);
+        render(); break;
+      case "edit": if (p) abrir(p); break;
+      case "del": apagando = b.dataset.id; render(); break;
+      case "del-no": apagando = null; render(); break;
+      case "del-ok":
+        b.disabled = true;
+        apagando = null;
+        await gravar("DELETE", b.dataset.id, null, "Pedido apagado");
+        render(); break;
+      case "pagar":
+        if (!p) return;
+        b.disabled = true;
+        await gravar("PATCH", p.id, { dados: { pago: Number(p.valor) || 0 }, eventos: ["Recebido " + reais(falta(p)) + " (quitado)"] }, "Pagamento registrado");
+        break;
+      case "status": {
+        if (!p || p.status === b.dataset.status) return;
+        const novo = b.dataset.status;
+        b.disabled = true;
+        await gravar("PATCH", p.id,
+          { dados: { status: novo, entregueEm: novo === "entregue" ? new Date().toISOString() : null }, eventos: ["Etapa: " + nomeEtapa(novo, lojaDe(p))] },
+          novo === "entregue" ? "Entregue. O pedido foi para o Histórico" : p.status === "entregue" ? "Pedido voltou para os abertos" : "Etapa: " + nomeEtapa(novo, lojaDe(p)));
+        break;
+      }
+      case "copy": {
+        if (!p) return;
+        try { await navigator.clipboard.writeText(textoFicha(p)); toast("Ficha copiada. Cole no WhatsApp"); }
+        catch (er) { toast("Não deu para copiar neste aplicativo"); }
+        break;
+      }
+    }
+  });
+
+  render();
+
+  // Login: quem não está logado vai para a página /login
+  function irParaLogin() { sessao = null; location.replace("/login"); }
+  function mostrarSessao() {
+    $("quem").textContent = sessao ? "Olá, " + sessao : "";
+    $("atualizado").textContent = ultima ? "· atualizado às " + ultima.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+  }
+  $("sair").addEventListener("click", async () => {
+    try { await fetch("/api/logout", { method: "POST", cache: "no-store" }); } catch (e) {}
+    irParaLogin();
+  });
+
+  (async function iniciar() {
+    try {
+      const r = await fetch("/api/sessao", { cache: "no-store", credentials: "same-origin" });
+      if (!r.ok) return irParaLogin();
+      sessao = (await r.json()).usuario;
+    } catch (e) {
+      $("aviso").textContent = "Sem internet. Confira a conexão e recarregue a página.";
+      $("aviso").hidden = false;
+      document.documentElement.classList.remove("checando");
+      return;
+    }
+    document.documentElement.classList.remove("checando");
+    carregar();
+  })();
+
+  // Busca novidades a cada 15 s com a tela aberta, e na hora em que o app volta para a frente
+  setInterval(() => { if (sessao && document.visibilityState === "visible") carregar(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (sessao && document.visibilityState === "visible") carregar(); });
+  // Atualiza contagem de dias ao virar o dia
+  setInterval(render, 60 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
