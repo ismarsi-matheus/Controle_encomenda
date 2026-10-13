@@ -240,7 +240,7 @@ html.checando body { visibility: hidden; }
     <div>
       <h1>Bastidor de Pedidos</h1>
       <p>Encomendas personalizadas das duas lojas: peça, personalização, pagamento e prazo.</p>
-      <div class="session"><span id="quem"></span><span id="atualizado"></span><button type="button" class="btn link" id="sair">Sair</button></div>
+      <div class="session"><span id="quem"></span><span id="atualizado"></span><button type="button" class="btn link" id="atualizar">Atualizar agora</button><button type="button" class="btn link" id="sair">Sair</button></div>
     </div>
     <button class="btn primary" id="novo" type="button">+ Novo pedido</button>
   </header>
@@ -829,8 +829,15 @@ html.checando body { visibility: hidden; }
     carregar();
   })();
 
-  // Busca novidades a cada 15 s com a tela aberta, e na hora em que o app volta para a frente
-  setInterval(() => { if (sessao && document.visibilityState === "visible") carregar(); }, 15000);
+  // Busca novidades a cada 60 s com a tela aberta, e na hora em que o app volta para a frente.
+  // Espaçado de propósito para caber no plano grátis do Upstash (~2.400 consultas/dia com 5 aparelhos abertos 8 h).
+  setInterval(() => { if (sessao && document.visibilityState === "visible") carregar(); }, 60000);
+  $("atualizar").addEventListener("click", async () => {
+    $("atualizar").disabled = true;
+    await carregar();
+    $("atualizar").disabled = false;
+    toast("Lista atualizada");
+  });
   document.addEventListener("visibilitychange", () => { if (sessao && document.visibilityState === "visible") carregar(); });
   // Atualiza contagem de dias ao virar o dia
   setInterval(render, 60 * 60 * 1000);
