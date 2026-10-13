@@ -170,11 +170,18 @@ textarea { resize: vertical; min-height: 64px; }
   .wrap { padding-block: 14px calc(96px + env(safe-area-inset-bottom, 0px)); gap: 14px; }
   header.top p, header.top .btn.primary, .views { display: none; }
   header.top h1 { font-size: 24px; }
-  .store { padding: 9px 8px; }
+  .store { padding: 8px 4px; justify-items: center; text-align: center; }
+  .store b { font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .store small { font-size: 11px; white-space: nowrap; }
   .store .sub { display: none; }
-  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .sum { padding: 9px 12px; }
+  /* Resumo: contadores numa faixa só; valores em reais numa linha inteira cada */
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sum { flex: 1 1 0; min-width: 0; padding: 8px 10px; gap: 0; }
   .sum b { font-size: 22px; }
+  .sum span { font-size: 10.5px; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sum.wide { flex: 1 1 100%; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; }
+  .sum.wide b { font-size: 20px; }
+  .sum.wide span { font-size: 12px; }
   .toolbar { display: grid; gap: 8px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: var(--bg); margin-inline: -16px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
   .tabs { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
@@ -491,18 +498,18 @@ textarea { resize: vertical; min-height: 64px; }
       abertos().forEach(p => { const n = diasAte(p.prazo); if (n === null) return; if (n < 0) late++; else if (n === 0) today++; else if (n <= 7) week++; });
       $("resumo").innerHTML = `
         <div class="sum late"><b>${late}</b><span>Atrasados</span></div>
-        <div class="sum today"><b>${today}</b><span>Vencem hoje</span></div>
-        <div class="sum"><b>${week}</b><span>Próx. 7 dias</span></div>
-        <div class="sum money"><b>${reais(daLoja().reduce((t, p) => t + falta(p), 0))}</b><span>A receber</span></div>`;
+        <div class="sum today"><b>${today}</b><span>Vence hoje</span></div>
+        <div class="sum"><b>${week}</b><span>Em 7 dias</span></div>
+        <div class="sum money wide"><b>${reais(daLoja().reduce((t, p) => t + falta(p), 0))}</b><span>A receber</span></div>`;
     } else {
       const ent = entregues();
       const ini = new Date(hoje().getFullYear(), hoje().getMonth(), 1);
       const doMes = ent.filter(p => dataEntrega(p) >= ini);
       $("resumo").innerHTML = `
         <div class="sum"><b>${doMes.length}</b><span>Entregues no mês</span></div>
-        <div class="sum money"><b>${reais(doMes.reduce((t, p) => t + (Number(p.valor) || 0), 0))}</b><span>Vendido no mês</span></div>
         <div class="sum"><b>${ent.length}</b><span>Total entregues</span></div>
-        <div class="sum late"><b>${reais(ent.reduce((t, p) => t + falta(p), 0))}</b><span>Entregue sem pagar</span></div>`;
+        <div class="sum money wide"><b>${reais(doMes.reduce((t, p) => t + (Number(p.valor) || 0), 0))}</b><span>Vendido no mês</span></div>
+        <div class="sum late wide"><b>${reais(ent.reduce((t, p) => t + falta(p), 0))}</b><span>Entregue sem pagar</span></div>`;
     }
   }
 
